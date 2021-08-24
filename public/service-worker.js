@@ -29,7 +29,7 @@ self.addEventListener("activate", event => {
     caches
     .keys()
     .then(cacheNames => {
-        // return array of cache names that are old to delete
+        // tries to delete old cache by returning an array of caches to delete
           return cacheNames.filter(
             cacheName => !currentCaches.includes(cacheName)
           );
@@ -46,7 +46,7 @@ self.addEventListener("activate", event => {
 });
   
 self.addEventListener("fetch", event => {
-  // non GET requests are not cached and requests to other origins are not cached
+  // anything that is not a GET request will not get cached
   if (
     event.request.method !== "GET" ||
     !event.request.url.startsWith(self.location.origin)
@@ -54,10 +54,8 @@ self.addEventListener("fetch", event => {
     event.respondWith(fetch(event.request));
     return;
   }
-
-  // handle runtime GET requests for data from /api routes
+  // checks to see if network connection available and uses cache if offline
   if (event.request.url.includes("/api/")) {
-    // make network request and fallback to cache if network request fails (offline)
     event.respondWith(
       caches.open(DATA_CACHE).then(cache => {
         return fetch(event.request)
@@ -70,15 +68,12 @@ self.addEventListener("fetch", event => {
     );
     return;
   }
-
-  // use cache first for all other requests for performance
+  //for increased response time uses cache first
   event.respondWith(
     caches.match(event.request).then(cachedResponse => {
       if (cachedResponse) {
         return cachedResponse;
       }
-
-      // request is not in cache. make network request and cache the response
       return caches.open(RUNTIME_CACHE).then(cache => {
         return fetch(event.request).then(response => {
           return cache.put(event.request, response.clone()).then(() => {
